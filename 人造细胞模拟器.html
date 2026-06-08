@@ -1,0 +1,2100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>人造细胞世界模拟系统 - V34</title>
+    
+    <style>
+        /* --- iOS 风格：基础与流畅性 --- */
+        *, *::before, *::after { box-sizing: border-box; }
+        html {
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            scroll-behavior: smooth;
+        }
+        /* 全局滚动条：深色主题适配 */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 188, 212, 0.25) rgba(255,255,255,0.04);
+        }
+        *::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        *::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.04);
+            border-radius: 4px;
+        }
+        *::-webkit-scrollbar-thumb {
+            background: rgba(0, 188, 212, 0.25);
+            border-radius: 4px;
+        }
+        *::-webkit-scrollbar-thumb:hover {
+            background: rgba(0, 188, 212, 0.4);
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(180deg, #0a0a0c 0%, #0f0f12 100%);
+            color: #e8e8ed;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 24px;
+            min-height: 100vh;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 95%;
+            margin-bottom: 24px;
+            gap: 20px;
+        }
+        h1 {
+            margin: 0;
+            color: #00bcd4;
+            font-weight: 600;
+            letter-spacing: -0.02em;
+            text-shadow: 0 0 24px rgba(0, 188, 212, 0.3);
+            transition: opacity 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        #openConfigBtn {
+            flex-shrink: 0;
+        }
+
+        /* --- 规则配置弹窗（张开/收缩动画）--- */
+        .config-modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.4s cubic-bezier(0.25, 0.1, 0.25, 1),
+                        visibility 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        .config-modal-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+        .config-modal-overlay.hiding .config-modal-dialog {
+            transform: scale(0.85) translateY(30px);
+            opacity: 0;
+        }
+        .config-modal-dialog {
+            background: rgba(24, 24, 28, 0.95);
+            backdrop-filter: saturate(180%) blur(24px);
+            -webkit-backdrop-filter: saturate(180%) blur(24px);
+            border-radius: 20px;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.04);
+            max-width: 600px;
+            width: 92%;
+            max-height: 85vh;
+            overflow: visible;
+            transform: scale(0.75) translateY(40px);
+            opacity: 0;
+            transform-origin: center center;
+            transition: transform 0.45s cubic-bezier(0.34, 1.56, 0.64, 1),
+                        opacity 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        .config-modal-overlay.show .config-modal-dialog {
+            transform: scale(1) translateY(0);
+            opacity: 1;
+        }
+        .config-modal-inner {
+            display: flex;
+            gap: 0;
+            max-height: 85vh;
+        }
+        .config-modal-body {
+            flex: 1;
+            overflow-y: auto;
+            min-width: 0;
+            padding: 24px;
+        }
+        .config-modal-actions {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding: 24px 20px 24px 0;
+            margin-left: 8px;
+            border-left: 1px solid rgba(255,255,255,0.06);
+        }
+        .config-modal-actions button {
+            white-space: nowrap;
+        }
+        .config-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 24px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            background: rgba(34, 34, 42, 0.6);
+            border-radius: 20px 20px 0 0;
+        }
+        .config-modal-header h2 {
+            margin: 0;
+            font-size: 1.2em;
+            color: #00bcd4;
+        }
+        .config-modal-close {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(255,255,255,0.08);
+            color: #fff;
+            font-size: 1.4em;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s, transform 0.2s;
+            line-height: 1;
+        }
+        .config-modal-close:hover {
+            background: rgba(255,255,255,0.15);
+            transform: rotate(90deg);
+        }
+
+        .controls-container {
+            background: rgba(28, 28, 32, 0.85);
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            padding: 20px;
+            border-radius: 16px;
+            margin-bottom: 24px;
+            display: flex;
+            gap: 20px;
+            align-items: center;
+            flex-wrap: wrap;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4), 0 0 1px rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.06);
+            width: 95%;
+            max-width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 188, 212, 0.25) rgba(255,255,255,0.04);
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: contain;
+            transition: box-shadow 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        .controls-container::-webkit-scrollbar { height: 6px; }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .control-group input[type=number] { width: 70px; min-width: 50px; }
+
+        /* 取消数值输入框增减按钮 */
+        input[type=number]::-webkit-inner-spin-button,
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; appearance: textfield; }
+        /* iOS 风格输入框 */
+        select {
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(18, 18, 21, 0.9);
+            color: #fff;
+            cursor: pointer;
+            min-width: 100px;
+        }
+        input[type=number], input[type=range], #user-query {
+            padding: 10px 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.08);
+            background: rgba(18, 18, 21, 0.9);
+            color: #fff;
+            transition: all 0.25s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        input:focus, #user-query:focus {
+            border-color: rgba(0, 188, 212, 0.6);
+            box-shadow: 0 0 0 3px rgba(0, 188, 212, 0.15);
+            outline: none;
+        }
+        /* iOS 风格按钮：按压反馈 + 丝滑过渡 */
+        button {
+            padding: 12px 18px;
+            background-color: #00bcd4;
+            border: none;
+            border-radius: 12px;
+            color: #0a0a0c;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.95em;
+            transition: all 0.2s cubic-bezier(0.25, 0.1, 0.25, 1);
+            white-space: nowrap;
+            box-shadow: 0 2px 8px rgba(0, 188, 212, 0.25);
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        button:active:not(:disabled) {
+            transform: scale(0.96);
+            transition-duration: 0.1s;
+        }
+        button:hover:not(:disabled) {
+            background-color: #00acc1;
+            box-shadow: 0 4px 16px rgba(0, 188, 212, 0.35);
+            transform: translateY(-1px);
+        }
+        button:hover:active:not(:disabled) { transform: scale(0.96) translateY(0); }
+        button:disabled {
+            background-color: rgba(255,255,255,0.08);
+            cursor: not-allowed;
+            color: rgba(255,255,255,0.35);
+            box-shadow: none;
+            transform: none;
+        }
+        button.stop { background-color: #ff5722; box-shadow: 0 2px 8px rgba(255, 87, 34, 0.25); }
+        button.stop:hover:not(:disabled) { background-color: #ff7043; box-shadow: 0 4px 16px rgba(255, 87, 34, 0.35); }
+        button.reset { background-color: #607d8b; box-shadow: 0 2px 8px rgba(96, 125, 139, 0.2); }
+        button.reset:hover:not(:disabled) { background-color: #78909c; box-shadow: 0 4px 16px rgba(96, 125, 139, 0.3); }
+        button.log { background-color: #9c27b0; box-shadow: 0 2px 8px rgba(156, 39, 176, 0.25); }
+        button.log:hover:not(:disabled) { background-color: #ab47bc; box-shadow: 0 4px 16px rgba(156, 39, 176, 0.35); }
+        button.disaster { background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); box-shadow: 0 2px 8px rgba(255, 107, 53, 0.3); }
+        button.disaster:hover:not(:disabled) { background: linear-gradient(135deg, #ff8555 0%, #ffa940 100%); box-shadow: 0 4px 16px rgba(255, 107, 53, 0.4); }
+        button.history { background-color: #2196f3; box-shadow: 0 2px 8px rgba(33, 150, 243, 0.25); }
+        button.history:hover:not(:disabled) { background-color: #42a5f5; box-shadow: 0 4px 16px rgba(33, 150, 243, 0.35); }
+        button.apply-settings { background-color: #4caf50; box-shadow: 0 2px 8px rgba(76, 175, 80, 0.25); }
+        button.apply-settings:hover { background-color: #66bb6a; box-shadow: 0 4px 16px rgba(76, 175, 80, 0.35); }
+
+
+        /* --- 模拟区域：iOS 风格滚动 --- */
+        .simulation-area-wrapper {
+            width: 100%;
+            overflow-x: auto;
+            overflow-y: hidden;
+            padding-bottom: 12px;
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-x: smooth;
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 188, 212, 0.25) rgba(255,255,255,0.04);
+        }
+        .simulation-area-wrapper::-webkit-scrollbar { height: 8px; }
+        .simulation-area {
+            display: flex;
+            gap: 24px;
+            justify-content: flex-start;
+            min-width: min-content;
+            transition: gap 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        
+        #left-panel-container {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            width: 420px;
+            min-width: 280px;
+            min-height: 800px;
+            flex-shrink: 0;
+            align-self: stretch;
+        }
+
+        /* 画布容器：毛玻璃边框 + 柔和阴影 */
+        #canvas-container {
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.04), 0 0 40px rgba(0, 188, 212, 0.08);
+            border-radius: 20px;
+            overflow: hidden;
+            border: 1px solid rgba(0, 188, 212, 0.25);
+            width: 800px;
+            height: 800px;
+            flex-shrink: 0;
+            transition: box-shadow 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        #canvas-container:hover {
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.06), 0 0 60px rgba(0, 188, 212, 0.12);
+        }
+
+        canvas {
+            display: block;
+            background-color: #0a0a0c;
+            cursor: default;
+        }
+
+        /* --- 面板：iOS 毛玻璃卡片 --- */
+        #stats-panel, #hitoshi-panel {
+            background: rgba(28, 28, 32, 0.85);
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            padding: 0;
+            border-radius: 16px;
+            box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 0 1px rgba(255,255,255,0.06);
+            border: 1px solid rgba(255,255,255,0.06);
+            width: 100%;
+            overflow: hidden;
+            transition: transform 0.3s cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 0.3s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        #stats-panel { padding: 24px; min-width: 200px; } 
+
+        .panel-header {
+            background: rgba(34, 34, 42, 0.9);
+            color: #fff;
+            padding: 16px 20px;
+            border-radius: 16px 16px 0 0;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 1.05em;
+            font-weight: 600;
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            transition: background 0.25s cubic-bezier(0.25, 0.1, 0.25, 1);
+            -webkit-tap-highlight-color: transparent;
+        }
+        .panel-header:hover { background: rgba(42, 42, 52, 0.95); }
+        .panel-header:active { background: rgba(50, 50, 60, 0.95); }
+        
+        .header-icon {
+            font-size: 0.85em;
+            opacity: 0.8;
+            transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .panel-header.collapsed .header-icon {
+            transform: rotate(-90deg); 
+        }
+        
+        .panel-content {
+            padding: 0 20px;
+            max-height: 1000px;
+            overflow: hidden;
+            transition: max-height 0.45s cubic-bezier(0.34, 1.56, 0.64, 1), padding 0.4s cubic-bezier(0.25, 0.1, 0.25, 1);
+        }
+        
+        .panel-content.collapsed {
+            max-height: 0;
+            padding-top: 0;
+            padding-bottom: 0;
+            border-bottom-left-radius: 16px;
+            border-bottom-right-radius: 16px;
+        }
+        
+        #hitoshi-panel {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+        #hitoshi-panel .panel-content {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+        }
+        #hitoshi-panel #chat-window {
+            flex: 1;
+            min-height: 180px;
+            overflow-y: auto;
+            overflow-x: auto;
+            margin: 16px 0;
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.06);
+            background: rgba(18, 18, 21, 0.8);
+            padding: 16px;
+            -webkit-overflow-scrolling: touch;
+        }
+        #user-input-container {
+            display: flex;
+            gap: 12px;
+            padding-bottom: 16px;
+        }
+        #user-input-container #user-query {
+            flex: 1;
+            min-width: 0;
+        }
+        #user-input-container #send-query {
+            flex-shrink: 0;
+        }
+        .hitoshi-msg {
+            background: rgba(0, 188, 212, 0.12);
+            color: #5de8f7;
+            border-radius: 12px;
+            padding: 10px 12px;
+            margin: 6px 0;
+            transition: background 0.2s ease;
+        }
+        
+        #stats-panel h2, .config-modal-body h3 {
+            color: #00bcd4;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            padding-bottom: 8px;
+            margin-bottom: 12px;
+            font-size: 1em;
+            font-weight: 600;
+            letter-spacing: -0.01em;
+        }
+
+        .setting-item, .stat-value {
+            color: rgba(255,255,255,0.9);
+        }
+        .setting-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+        .setting-item label {
+            flex: 0 1 auto;
+            min-width: 0;
+        }
+        .setting-item input {
+            flex: 1;
+            min-width: 60px;
+        }
+        .toggle-wrap { display: flex; align-items: center; gap: 8px; cursor: pointer; user-select: none; }
+        .toggle-wrap input[type=checkbox] { flex: none; width: 18px; height: 18px; cursor: pointer; accent-color: #00bcd4; }
+        .setting-group {
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            animation: modalGroupIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) backwards;
+        }
+        .config-modal-overlay.show .setting-group:nth-child(1) { animation-delay: 0.05s; }
+        .config-modal-overlay.show .setting-group:nth-child(2) { animation-delay: 0.1s; }
+        .config-modal-overlay.show .setting-group:nth-child(3) { animation-delay: 0.15s; }
+        @keyframes modalGroupIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* 滑块美化 */
+        input[type=range] {
+            -webkit-appearance: none;
+            height: 6px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 3px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #00bcd4;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0, 188, 212, 0.4);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            box-shadow: 0 2px 12px rgba(0, 188, 212, 0.5);
+        }
+
+        /* 消息气泡动画 */
+        .message {
+            animation: msgAppear 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+        .user-msg { color: rgba(255,255,255,0.9); padding: 8px 12px; }
+        @keyframes msgAppear {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .highlight { transition: color 0.2s ease; }
+        #history-controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+        /* 页面加载淡入 */
+        body { animation: pageLoad 0.5s cubic-bezier(0.25, 0.1, 0.25, 1) forwards; }
+        @keyframes pageLoad { from { opacity: 0; } to { opacity: 1; } }
+    </style>
+</head>
+<body>
+
+    <div class="page-header">
+        <h1>🧬 人造细胞世界模拟系统</h1>
+    </div>
+
+    <div class="controls-container">
+        <div class="control-group">
+            <label for="gridSizeInput">地图大小 (NxN):</label>
+            <input type="number" id="gridSizeInput" value="64" min="3" max="1280" onchange="updateGridSize()">
+        </div>
+        
+        <div class="control-group">
+            <label for="initCount">初始细胞数:</label>
+            <input type="number" id="initCount" value="100" min="1" max="4096">
+        </div>
+        <div class="control-group">
+            <label>生成方式:</label>
+            <select id="initMode">
+                <option value="random">随机生成</option>
+                <option value="manual">手动点击生成</option>
+            </select>
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <button id="startResumeBtn">开始</button>
+            <button id="pauseBtn" class="stop">暂停</button>
+            <button id="resetBtn" class="reset">重置</button>
+        </div>
+        
+        <div class="control-group">
+            <label for="speedRange">演化速度 (Ticks/秒): <span id="speedVal">5</span></label>
+            <input type="range" id="speedRange" min="1" max="30" value="5">
+        </div>
+        
+        <button id="openConfigBtn" class="apply-settings">⚙️ 规则配置</button>
+        <button id="downloadLogBtn" class="log">下载历史记录</button>
+        <button id="lightningBtn" class="disaster" title="随机区域释放闪电">⚡ 闪电</button>
+        <button id="earthquakeBtn" class="disaster" title="随机裂缝造成地震">🌋 地震</button>
+        <div class="control-group" style="align-items: center;">
+            <label class="toggle-wrap"><input type="checkbox" id="apocalypseMode"> <span class="toggle-label">💀 世界末日</span></label>
+        </div>
+    </div>
+
+    <div class="simulation-area-wrapper">
+    <div class="simulation-area">
+        
+        <div id="left-panel-container">
+
+            <div id="hitoshi-panel">
+                <div class="panel-header" data-target="chat-body">
+                    <span>🤖 AI 助手 - Hitoshi</span>
+                    <span class="header-icon">&#9660;</span>
+                </div>
+                <div id="chat-body" class="panel-content">
+                    <div id="chat-window">
+                        <div class="message hitoshi-msg">
+                            你好！我是 Hitoshi，细胞世界模拟系统的 AI 助手。有什么关于**规则、参数、细胞颜色**或**操作**的问题吗？如果您想了解**整个系统的原理**，也可以问我。
+                        </div>
+                    </div>
+                    <div id="user-input-container">
+                        <input type="text" id="user-query" placeholder="输入您的问题...">
+                        <button id="send-query">发送</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="canvas-container">
+            <canvas id="worldCanvas"></canvas> 
+        </div>
+
+        <div id="stats-panel">
+            <h2>🌍 世界状态</h2>
+            <p>总细胞数: <span id="cellCount" class="highlight stat-value">0</span></p>
+            <p>当前时间: <span id="simTime" class="highlight stat-value">0 s</span></p>
+            <p>状态: <span id="simStatus" class="highlight stat-value">停止</span></p>
+            
+            <h2 style="margin-top: 15px;">⏪ 时序控制 (手动)</h2>
+            <div id="history-controls">
+                <button id="stepBackBtn" class="history" disabled>⏪ 回溯一步</button>
+                <span id="historyPointerInfo">0 / 0</span>
+                <button id="stepForwardBtn" class="history" disabled>前进一步 ⏩</button>
+            </div>
+            
+            <h2 style="margin-top: 15px;">🦠 病毒统计</h2>
+            <p>世界病毒状态: <span id="virusPresentStatus" class="virus-stat stat-value">无病毒</span></p>
+            <p>感染细胞占比: <span id="infectedPercent" class="virus-stat stat-value">0.00%</span></p>
+            <p>被病毒累计杀死: <span id="killedByVirus" class="virus-stat stat-value">0</span></p>
+            <p style="border-top: 1px solid #444; padding-top: 5px; margin-top: 5px;">总死亡细胞数 (累计): <span id="totalDeadCells" class="virus-stat stat-value">0</span></p>
+
+            <h2 style="margin-top: 15px;">🌐 全局参数</h2>
+            <p>当前密度: <span id="density" class="stat-value">0.00%</span></p>
+            <p style="color: #FFC107; font-weight: bold;">拥挤抑制激活概率: <span id="ruleProb" class="stat-value">0%</span></p>
+            
+            <h2 style="margin-top: 15px;">🖱️ 视图控制 (V34)</h2>
+            <p>缩放比例: <span id="scaleValue" class="stat-value">1.0</span></p>
+            <p style="font-size: 0.9em; color: #999;">滚轮缩放，左键拖动</p>
+        </div>
+        
+
+    </div>
+    </div>
+
+    <!-- 规则配置弹窗 -->
+    <div id="configModal" class="config-modal-overlay" aria-hidden="true">
+        <div class="config-modal-dialog" role="dialog">
+            <div class="config-modal-header">
+                <h2>⚙️ 规则配置</h2>
+                <button type="button" class="config-modal-close" id="closeConfigBtn" aria-label="关闭">×</button>
+            </div>
+            <div class="config-modal-inner">
+            <div class="config-modal-body">
+                <div class="setting-group">
+                    <h3>生命周期与死亡</h3>
+                    <div class="setting-item">
+                        <label>初始/最大寿命 (Ticks):</label>
+                        <input type="number" id="setting_MAX_LIFESPAN" value="20" min="1" max="100">
+                    </div>
+                    <div class="setting-item">
+                        <label>拥挤致死邻居数 (≥):</label>
+                        <input type="number" id="setting_CONGESTION_LIMIT" value="6" min="1" max="8">
+                    </div>
+                    <div class="setting-item">
+                        <label>孤独致死时间 (Ticks):</label>
+                        <input type="number" id="setting_ISOLATION_LIMIT" value="10" min="1" max="100">
+                    </div>
+                </div>
+                <div class="setting-group">
+                    <h3>分裂规则</h3>
+                    <div class="setting-item">
+                        <label>分裂寿命窗口下限:</label>
+                        <input type="number" id="setting_SPLIT_MIN" value="10" min="1" max="20">
+                    </div>
+                    <div class="setting-item">
+                        <label>分裂寿命窗口上限:</label>
+                        <input type="number" id="setting_SPLIT_MAX" value="15" min="1" max="20">
+                    </div>
+                    <div class="setting-item">
+                        <label>拥挤抑制因子:</label>
+                        <input type="number" id="setting_DENSITY_PROBABILITY_FACTOR" value="3.0" step="0.1" min="0.1" max="10">
+                    </div>
+                </div>
+                <div class="setting-group" style="border-bottom: none;">
+                    <h3>🦠 病毒规则</h3>
+                    <div class="setting-item" style="justify-content: space-between;">
+                        <label>病毒生成:</label>
+                        <label class="toggle-wrap"><input type="checkbox" id="setting_VIRUS_ENABLED" checked> <span class="toggle-label"></span></label>
+                    </div>
+                    <div class="setting-item">
+                        <label>病毒激活密度 (%):</label>
+                        <input type="number" id="setting_VIRUS_DENSITY_START" value="50" min="1" max="100">
+                    </div>
+                    <div class="setting-item">
+                        <label>病毒清除密度 (%):</label>
+                        <input type="number" id="setting_VIRUS_DENSITY_STOP" value="10" min="1" max="100">
+                    </div>
+                    <div class="setting-item">
+                        <label>病毒生成概率 (%):</label>
+                        <input type="number" id="setting_VIRUS_GENERATION_PRO" value="1.0" step="0.1" min="0.1" max="100">
+                    </div>
+                    <div class="setting-item">
+                        <label>加速死亡倍率 (非分裂期):</label>
+                        <input type="number" id="setting_VIRUS_ACCEL_HIGH" value="10" min="1" max="100">
+                    </div>
+                    <div class="setting-item">
+                        <label>加速死亡倍率 (分裂期):</label>
+                        <input type="number" id="setting_VIRUS_ACCEL_LOW" value="5" min="1" max="100">
+                    </div>
+                </div>
+            </div>
+            <div class="config-modal-actions">
+                <button id="applySettingsBtn" class="apply-settings">应用设置</button>
+                <button id="resetConfigBtn" class="reset">重置初始设置</button>
+            </div>
+            </div>
+        </div>
+    </div>
+
+<script src="config.js"></script>
+<script>
+// --- V34 动态配置变量 ---
+let GRID_SIZE = typeof APP_CONFIG !== 'undefined' ? APP_CONFIG.gridSize : 64; 
+const CANVAS_MAX = 800; 
+
+let GRID_AREA = GRID_SIZE * GRID_SIZE; 
+let CELL_SIZE = CANVAS_MAX / GRID_SIZE; 
+const CANVAS_SIZE = CANVAS_MAX; 
+
+// --- V34 视图控制变量 ---
+let scale = 1.0; 
+let translateX = 0; 
+let translateY = 0; 
+let isDragging = false;
+let lastMouseX = 0;
+let lastMouseY = 0;
+let mouseDownPos = null;
+const MIN_SCALE = 1.0;
+const MAX_SCALE = 20.0;
+const ZOOM_SENSITIVITY = 0.1;
+const DRAG_THRESHOLD = 5;  // 鼠标移动超过此像素才判定为拖拽，否则为点击
+
+// --- 配置常量 (从 config.js 加载) ---
+let MAX_LIFESPAN = 20;
+let ISOLATION_LIMIT = 10;
+let CONGESTION_LIMIT = 6; 
+let SPLIT_MIN = 10;
+let SPLIT_MAX = 15; 
+let DENSITY_PROBABILITY_FACTOR = 3.0; 
+let VIRUS_DENSITY_START = 0.5; 
+let VIRUS_DENSITY_STOP = 0.1; 
+let VIRUS_GENERATION_PRO = 0.01;
+let virusEnabled = true; 
+let VIRUS_ACCEL_HIGH = 10; 
+let VIRUS_ACCEL_LOW = 5;  
+let framesPerSecond = 5;
+
+let LOG_INTERVAL = 10;     
+
+// --- 全局变量 ---
+let canvas, ctx;
+let cells = [];
+let gridMap = []; 
+let simulationId = null;
+let isRunning = false;
+let simulationTime = 0; 
+let currentRuleActivationChance = 0; 
+let cellsKilledByVirus = 0;
+let totalDeadCells = 0;      
+let virusPresent = false; 
+let bornCountThisTick = 0; 
+let historyLog = [];         
+let stateHistory = [];       
+let historyPointer = 0;      
+let isReplaying = false;     
+let cellTrails = [];         
+let deathEffects = [];       
+let animLoopId = null;
+let isInAnimLoop = false;
+let initMode = 'random';  // 'random' | 'manual'
+let apocalypseMode = false;
+
+
+// --- 细胞类 (保持不变) ---
+class Cell {
+    constructor(x, y, lifespan = MAX_LIFESPAN, isolationTime = 0, hasVirus = false) {
+        this.x = x;
+        this.y = y;
+        this.lifespan = lifespan;
+        this.isolationTime = isolationTime;
+        this.hasVirus = hasVirus;
+    }
+
+    resetLifespan() {
+        this.lifespan = MAX_LIFESPAN;
+        this.isolationTime = 0;
+    }
+    
+    clone() {
+        return new Cell(this.x, this.y, this.lifespan, this.isolationTime, this.hasVirus);
+    }
+}
+
+
+// --- 视图控制函数 (V34 新增) ---
+
+/** 边界检查：限制平移范围，防止地图被拖出视野 */
+function checkBounds() {
+    if (scale <= MIN_SCALE) {
+        translateX = 0;
+        translateY = 0;
+        return;
+    }
+
+    // 最小允许的平移量 (当缩放后的地图边缘与画布边缘对齐时)
+    const minTranslate = CANVAS_SIZE - CANVAS_SIZE * scale;
+
+    // 限制 X 轴平移量
+    translateX = Math.min(0, Math.max(minTranslate, translateX)); 
+
+    // 限制 Y 轴平移量
+    translateY = Math.min(0, Math.max(minTranslate, translateY));
+}
+
+/** 滚轮事件处理：缩放地图，并以鼠标位置为中心 */
+function handleZoom(e) {
+    e.preventDefault();
+
+    const rect = canvas.getBoundingClientRect();
+    // 鼠标在 Canvas 上的 X, Y 坐标 (相对于 800x800 画布)
+    const mouseX = e.clientX - rect.left; 
+    const mouseY = e.clientY - rect.top; 
+
+    // 计算新的缩放因子 (deltaY * -0.01 是为了适配不同浏览器的滚轮习惯，-100 代表滚轮向上滚动)
+    const delta = e.deltaY * -0.01; 
+    const newScale = Math.min(MAX_SCALE, Math.max(MIN_SCALE, scale * (1 + delta * ZOOM_SENSITIVITY)));
+    
+    if (newScale === scale) return;
+
+    // 缩放中心保持不变的核心公式: newT = mouse - (mouse - oldT) * ratio
+    const ratio = newScale / scale;
+
+    translateX = mouseX - (mouseX - translateX) * ratio;
+    translateY = mouseY - (mouseY - translateY) * ratio;
+
+    scale = newScale;
+    
+    checkBounds();
+    
+    draw();
+}
+
+/** 鼠标按下事件：记录点击起始，不立即判定为拖拽 */
+function handleMouseDown(e) {
+    if (e.button !== 0) return;
+    mouseDownPos = { x: e.clientX, y: e.clientY };
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+}
+
+/** 鼠标移动事件：仅在位移超过阈值时判定为拖拽，否则保持可点击 */
+function handleMouseMove(e) {
+    if (mouseDownPos && scale > MIN_SCALE && !isDragging) {
+        const dx = e.clientX - mouseDownPos.x;
+        const dy = e.clientY - mouseDownPos.y;
+        if (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD) {
+            isDragging = true;
+            canvas.style.cursor = 'grabbing';
+        }
+    }
+    if (!isDragging) return;
+
+    const dx = e.clientX - lastMouseX;
+    const dy = e.clientY - lastMouseY;
+
+    translateX += dx;
+    translateY += dy;
+
+    lastMouseX = e.clientX;
+    lastMouseY = e.clientY;
+
+    checkBounds();
+    
+    draw();
+}
+
+/** 鼠标抬起/移出事件：停止拖动，或处理点击(杀细胞/添加细胞) */
+function handleMouseUp(e) {
+    if (e && e.type === 'mouseup' && e.button !== 0) return;
+    if (isDragging) {
+        isDragging = false;
+        canvas.style.cursor = 'default';
+        mouseDownPos = null;
+        return;
+    }
+    if (mouseDownPos && e && e.type === 'mouseup' && e.clientX != null) {
+        const dx = e.clientX - mouseDownPos.x;
+        const dy = e.clientY - mouseDownPos.y;
+        if (Math.abs(dx) < 6 && Math.abs(dy) < 6) {
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = CANVAS_SIZE / rect.width;
+            const scaleY = CANVAS_SIZE / rect.height;
+            const cx = (e.clientX - rect.left) * scaleX;
+            const cy = (e.clientY - rect.top) * scaleY;
+            const worldX = (cx - translateX) / scale;
+            const worldY = (cy - translateY) / scale;
+            const gx = Math.floor(worldX / CELL_SIZE);
+            const gy = Math.floor(worldY / CELL_SIZE);
+            if (gx >= 0 && gx < GRID_SIZE && gy >= 0 && gy < GRID_SIZE) {
+                if (initMode === 'manual' && !isRunning) {
+                    const cell = gridMap[gy] && gridMap[gy][gx];
+                    if (cell) killCellAt(gx, gy);
+                    else spawnCellAt(gx, gy);
+                } else {
+                    killCellAt(gx, gy);
+                }
+            }
+        }
+    }
+    mouseDownPos = null;
+    if (!isDragging) canvas.style.cursor = 'default';
+}
+
+// --- 核心设置函数 (保持不变) ---
+
+/** V32 保持：根据 UI 改变 GRID_SIZE 并重新计算 CELL_SIZE。overrideSize 可选，指定时直接使用该值 */
+function updateGridSize(overrideSize) {
+    let newSize = overrideSize != null ? overrideSize : parseInt(document.getElementById('gridSizeInput').value);
+    
+    const MIN_SIZE = 3;
+    const MAX_SIZE = 1280;
+    
+    newSize = Math.max(MIN_SIZE, Math.min(MAX_SIZE, newSize));
+    
+    document.getElementById('gridSizeInput').value = newSize;
+
+    if (newSize !== GRID_SIZE) {
+        GRID_SIZE = newSize;
+        GRID_AREA = GRID_SIZE * GRID_SIZE;
+        CELL_SIZE = CANVAS_SIZE / GRID_SIZE; 
+        
+        canvas.width = CANVAS_SIZE;
+        canvas.height = CANVAS_SIZE; 
+
+        resetSimulation();
+        updateHitoshiKnowledgeGridSize(); 
+    }
+}
+
+/** V34+：知识库由 buildHitoshiKnowledge() 动态构建，直接使用当前 GRID_SIZE，无需额外更新 */
+function updateHitoshiKnowledgeGridSize() { /* 已由 buildHitoshiKnowledge() 实时读取 GRID_SIZE */ }
+
+const CONFIG_STORAGE_KEY = 'cellWorld_savedConfig';
+
+/** 从 localStorage（优先）或 config.js 加载配置并初始化；forceDefault=true 时忽略 localStorage 只用 config.js */
+function loadConfigFromFile(forceDefault) {
+    let c = null;
+    if (!forceDefault) {
+        try {
+            const saved = localStorage.getItem(CONFIG_STORAGE_KEY);
+            if (saved) c = JSON.parse(saved);
+        } catch (_) {}
+    }
+    if (!c && typeof APP_CONFIG !== 'undefined') c = APP_CONFIG;
+    if (!c) return;
+    GRID_SIZE = Math.max(3, Math.min(1280, c.gridSize || 64));
+    MAX_LIFESPAN = c.maxLifespan ?? 20;
+    CONGESTION_LIMIT = c.congestionLimit ?? 6;
+    ISOLATION_LIMIT = c.isolationLimit ?? 10;
+    SPLIT_MIN = c.splitMin ?? 10;
+    SPLIT_MAX = c.splitMax ?? 15;
+    DENSITY_PROBABILITY_FACTOR = c.densityProbabilityFactor ?? 3.0;
+    VIRUS_DENSITY_START = ((c.virusDensityStart ?? 50) / 100);
+    VIRUS_DENSITY_STOP = ((c.virusDensityStop ?? 10) / 100);
+    VIRUS_GENERATION_PRO = ((c.virusGenerationPro ?? 1) / 100);
+    virusEnabled = c.virusEnabled !== false;
+    VIRUS_ACCEL_HIGH = c.virusAccelHigh ?? 10;
+    VIRUS_ACCEL_LOW = c.virusAccelLow ?? 5;
+    framesPerSecond = Math.max(1, Math.min(30, c.framesPerSecond ?? 5));
+    LOG_INTERVAL = Math.max(1, c.logInterval ?? 10);
+    GRID_AREA = GRID_SIZE * GRID_SIZE;
+    CELL_SIZE = CANVAS_SIZE / GRID_SIZE;
+    // 同步到基础控件
+    const initEl = document.getElementById('initCount');
+    const speedEl = document.getElementById('speedRange');
+    const speedValEl = document.getElementById('speedVal');
+    if (initEl) initEl.value = Math.min(c.initCount ?? 100, GRID_AREA);
+    if (speedEl) speedEl.value = framesPerSecond;
+    if (speedValEl) speedValEl.innerText = framesPerSecond;
+}
+
+/** 重置为 config.js 默认配置，清除 localStorage */
+function resetConfigToDefault() {
+    try {
+        localStorage.removeItem(CONFIG_STORAGE_KEY);
+    } catch (_) {}
+    loadConfigFromFile(true);
+    populateUIFromConstants();
+    updateGridSize();
+    resetSimulation();
+    closeConfigModal();
+}
+
+/** 将当前配置保存到 localStorage（点「应用设置」时自动调用，下次加载页面将应用） */
+function saveConfigToStorage() {
+    const cfg = {
+        gridSize: GRID_SIZE,
+        initCount: parseInt(document.getElementById('initCount')?.value || '100', 10),
+        framesPerSecond,
+        maxLifespan: MAX_LIFESPAN,
+        congestionLimit: CONGESTION_LIMIT,
+        isolationLimit: ISOLATION_LIMIT,
+        splitMin: SPLIT_MIN,
+        splitMax: SPLIT_MAX,
+        densityProbabilityFactor: DENSITY_PROBABILITY_FACTOR,
+        virusDensityStart: Math.round(VIRUS_DENSITY_START * 100),
+        virusDensityStop: Math.round(VIRUS_DENSITY_STOP * 100),
+        virusGenerationPro: Math.round(VIRUS_GENERATION_PRO * 100),
+        virusEnabled,
+        virusAccelHigh: VIRUS_ACCEL_HIGH,
+        virusAccelLow: VIRUS_ACCEL_LOW,
+        logInterval: LOG_INTERVAL,
+    };
+    try {
+        localStorage.setItem(CONFIG_STORAGE_KEY, JSON.stringify(cfg));
+    } catch (_) {}
+}
+
+function populateUIFromConstants() {
+    document.getElementById('setting_MAX_LIFESPAN').value = MAX_LIFESPAN;
+    document.getElementById('setting_CONGESTION_LIMIT').value = CONGESTION_LIMIT;
+    document.getElementById('setting_ISOLATION_LIMIT').value = ISOLATION_LIMIT;
+    document.getElementById('setting_SPLIT_MIN').value = SPLIT_MIN;
+    document.getElementById('setting_SPLIT_MAX').value = SPLIT_MAX;
+    document.getElementById('setting_DENSITY_PROBABILITY_FACTOR').value = DENSITY_PROBABILITY_FACTOR;
+    document.getElementById('setting_VIRUS_DENSITY_START').value = VIRUS_DENSITY_START * 100;
+    document.getElementById('setting_VIRUS_DENSITY_STOP').value = VIRUS_DENSITY_STOP * 100;
+    document.getElementById('setting_VIRUS_GENERATION_PRO').value = VIRUS_GENERATION_PRO * 100;
+    const virusEnabledEl = document.getElementById('setting_VIRUS_ENABLED');
+    if (virusEnabledEl) {
+        virusEnabledEl.checked = virusEnabled;
+        const lbl = virusEnabledEl.closest('.toggle-wrap')?.querySelector('.toggle-label');
+        if (lbl) lbl.textContent = virusEnabled ? '开启' : '关闭';
+    }
+    document.getElementById('setting_VIRUS_ACCEL_HIGH').value = VIRUS_ACCEL_HIGH;
+    document.getElementById('setting_VIRUS_ACCEL_LOW').value = VIRUS_ACCEL_LOW;
+    document.getElementById('gridSizeInput').value = GRID_SIZE; 
+}
+
+function loadSettingsFromUI() {
+    MAX_LIFESPAN = parseInt(document.getElementById('setting_MAX_LIFESPAN').value) || 20;
+    CONGESTION_LIMIT = parseInt(document.getElementById('setting_CONGESTION_LIMIT').value) || 6;
+    ISOLATION_LIMIT = parseInt(document.getElementById('setting_ISOLATION_LIMIT').value) || 10;
+    SPLIT_MIN = parseInt(document.getElementById('setting_SPLIT_MIN').value) || 10;
+    SPLIT_MAX = parseInt(document.getElementById('setting_SPLIT_MAX').value) || 15;
+    DENSITY_PROBABILITY_FACTOR = parseFloat(document.getElementById('setting_DENSITY_PROBABILITY_FACTOR').value) || 3.0;
+    VIRUS_DENSITY_START = (parseFloat(document.getElementById('setting_VIRUS_DENSITY_START').value) / 100) || 0.5;
+    VIRUS_DENSITY_STOP = (parseFloat(document.getElementById('setting_VIRUS_DENSITY_STOP').value) / 100) || 0.1;
+    VIRUS_GENERATION_PRO = (parseFloat(document.getElementById('setting_VIRUS_GENERATION_PRO').value) / 100) || 0.01;
+    const virusEnabledEl = document.getElementById('setting_VIRUS_ENABLED');
+    virusEnabled = virusEnabledEl ? virusEnabledEl.checked : true;
+    VIRUS_ACCEL_HIGH = parseInt(document.getElementById('setting_VIRUS_ACCEL_HIGH').value) || 10;
+    VIRUS_ACCEL_LOW = parseInt(document.getElementById('setting_VIRUS_ACCEL_LOW').value) || 5;
+    
+    updateGridSize();
+    saveConfigToStorage();
+    resetSimulation();
+}
+
+
+// --- Hitoshi AI 助手逻辑 (V34+ 智能增强) ---
+
+/** 知识条目：triggers 为触发词数组（按优先级，长词优先），content 为回复内容 */
+function buildHitoshiKnowledge() {
+    const k = {
+        系统介绍: `本系统是一个基于 ${GRID_SIZE}x${GRID_SIZE} 网格的简易人工生命模拟器。其运行基于一个循环的 **Tick** 机制，核心原理是**细胞的生命周期**与**环境压力**之间的动态平衡。
+
+**主要运行循环（Tick）**：
+1. **状态检查与病毒传播**：计算全局密度。如果密度低于 ${(VIRUS_DENSITY_STOP * 100).toFixed(0)}%，清除所有病毒；如果高于 ${(VIRUS_DENSITY_START * 100).toFixed(0)}%，病毒有概率生成。被感染细胞会传染邻居。
+2. **细胞迭代**：所有细胞同时执行状态更新：
+    * **寿命衰减**：寿命减 1，被病毒感染的细胞衰减速度提高 ${VIRUS_ACCEL_HIGH} 到 ${VIRUS_ACCEL_LOW} 倍。
+    * **死亡检查**：检查寿命耗尽、拥挤（≥ ${CONGESTION_LIMIT} 个邻居）和孤独（持续 ${ISOLATION_LIMIT} Tick 无邻居）三种死亡条件。
+    * **分裂与新生**：未感染且处于分裂窗口期（${SPLIT_MIN}-${SPLIT_MAX} Ticks）的细胞有机会分裂。全局高密度会通过 **拥挤抑制因子 (${DENSITY_PROBABILITY_FACTOR})** 降低分裂成功率。
+    * **移动**：细胞可能随机移动到相邻空位。
+3. **数据更新与渲染**：保存当前状态到历史记录，更新统计面板，并在画布上重新绘制细胞。
+
+系统的复杂性源于这些简单规则的交互作用。`,
+        寿命: `细胞的初始寿命是 ${MAX_LIFESPAN} Ticks。每 Tick 寿命减 1，感染病毒的细胞衰减更快。分裂期为 ${SPLIT_MIN} 到 ${SPLIT_MAX} Ticks。`,
+        死亡: `有三种死亡方式：1. **寿命耗尽**；2. **拥挤死亡**（8邻域内 ≥ ${CONGESTION_LIMIT} 个邻居）；3. **孤独死亡**（持续 ${ISOLATION_LIMIT} Ticks 无邻居）。`,
+        分裂: `细胞寿命在 ${SPLIT_MIN}～${SPLIT_MAX} Ticks 时可尝试分裂。需满足：未感染病毒、四邻域有空位。高密度时**拥挤抑制**会降低成功率（3邻域60%、4邻域30%、5邻域0%）。`,
+        病毒: `密度 > ${(VIRUS_DENSITY_START * 100).toFixed(0)}% 时病毒可能生成，感染细胞会传染8邻域。感染细胞**无法分裂**，寿命衰减加速 ${VIRUS_ACCEL_HIGH}～${VIRUS_ACCEL_LOW} 倍。密度 < ${(VIRUS_DENSITY_STOP * 100).toFixed(0)}% 时病毒清除。`,
+        密度: `全局密度 = 细胞数/格子总数。影响：①病毒生成与清除阈值；②拥挤抑制规则激活概率（密度×${DENSITY_PROBABILITY_FACTOR}）。`,
+        颜色: `**蓝**=新生期(>15)；**黄**=可分裂期(10-15)；**红**=衰老期(<10)；**绿**=感染病毒。`,
+         neighbor: `细胞有 **8邻域**（上下左右+对角）和 **4邻域**（仅上下左右）。死亡看8邻域，分裂看4邻域是否有空位。`,
+        拥挤: `当细胞周围8邻域内邻居数 ≥ ${CONGESTION_LIMIT} 时，该细胞**拥挤致死**。高密度也会激活分裂抑制。`,
+        孤独: `若细胞连续 ${ISOLATION_LIMIT} 个 Tick 没有任何邻居（8邻域为空），则**孤独致死**。`,
+        病毒分裂: `感染病毒的细胞**不能分裂**，只能移动。病毒通过降低密度（加速死亡）来平衡种群。`,
+        重置: `重置会清空所有细胞和历史，按当前「初始细胞数」在随机位置重新生成细胞。`,
+        回溯: `暂停后可用「回溯一步」「前进一步」浏览历史状态。从历史中间点重新开始会删除之后的记录。`,
+        设置: `在「规则配置」面板修改参数后，点击「应用设置并重置」才会生效。`,
+        如何开始: `设置好地图大小和初始细胞数，点击「开始」即可。`,
+        缩放: `鼠标**滚轮**以指针为中心缩放(1×～10×)，**左键拖动**可平移（缩放>1时）。`,
+        帮助: `您可以问我：**系统/原理**、**寿命/死亡/分裂**、**病毒/密度**、**颜色(蓝黄红绿)**、**邻居/拥挤/孤独**、**重置/回溯/设置**、**如何开始/缩放**等。`,
+        速度: `顶部「演化速度」滑块控制每秒执行的 Tick 数（1～30）。数值越大模拟越快，但可能影响观察。`,
+        tick: `Tick 是模拟的时间单位，每个 Tick 所有细胞同时执行一次完整更新（寿命、死亡检查、分裂、移动）。`,
+    };
+    return k;
+}
+
+/** 主题别名：某些主题共享同一内容 */
+const HITOSHI_ALIASES = { '原理': '系统介绍', '运行方式': '系统介绍' };
+
+/** 触发词映射：topicId -> [触发词...]，长词在前优先匹配 */
+const HITOSHI_TRIGGERS = {
+    '系统介绍': ['系统介绍', '系统概述', '整体介绍', '是什么', '介绍', '系统'],
+    '原理': ['原理', '怎么运行', '如何运作', '工作机制', '运行机制', '怎么工作', '运作'],
+    '运行方式': ['运行方式', '怎么运行', '如何运作'],
+    '寿命': ['寿命', '能活多久', '活多长时间'],
+    '死亡': ['死亡', '死', '怎么死', '为什么会死', '致死'],
+    '分裂': ['分裂', '繁殖', '怎么分裂', '如何分裂', '分裂条件'],
+    '病毒': ['病毒', '感染', '病毒怎么'],
+    '密度': ['密度', '拥挤抑制'],
+    '颜色': ['颜色', '色代表', '色表示', '什么意思', '什么含义'],
+    '蓝': ['蓝色', '蓝细胞', '蓝的', '蓝代表', '蓝表示', '蓝'],
+    '黄': ['黄色', '黄细胞', '黄的', '黄代表', '黄表示', '黄'],
+    '红': ['红色', '红细胞', '红的', '红代表', '红表示', '红'],
+    '绿': ['绿色', '绿细胞', '绿的', '绿代表', '绿表示', '感染颜色', '绿'],
+    'neighbor': ['邻居', '邻域', '8邻', '4邻', '周围'],
+    '拥挤': ['拥挤', '挤死', '太多邻居'],
+    '孤独': ['孤独', '孤单', '没邻居', '孤立'],
+    '病毒分裂': ['病毒分裂', '感染能分裂', '病毒和分裂', '感染后分裂'],
+    '重置': ['重置', '重开', '重新开始', '清空'],
+    '回溯': ['回溯', '历史', '前进一步', '后退', '回放'],
+    '设置': ['设置', '参数', '配置', '修改', '规则配置'],
+    '如何开始': ['如何开始', '怎么玩', '怎么开始', '怎么用', '新手', '入门', '怎么操作'],
+    '缩放': ['缩放', '放大', '缩小', '拖动', '平移', '视图', '滚轮'],
+    '帮助': ['帮助', '能问什么', '可以问', '问什么', '有哪些'],
+    '速度': ['速度', '演化速度', '调快', '调慢', '帧率'],
+    'tick': ['tick', '滴答', '时间单位', '一个周期'],
+};
+
+function respondToQuery(query) {
+    const chatWindow = document.getElementById('chat-window');
+    const userQuery = query.trim().toLowerCase().replace(/\s+/g, ' ');
+
+    const userMsgDiv = document.createElement('div');
+    userMsgDiv.className = 'message user-msg';
+    userMsgDiv.textContent = query;
+    chatWindow.appendChild(userMsgDiv);
+
+    let responseText = '';
+    const knowledge = buildHitoshiKnowledge();
+
+    // 1. 问候语（支持 "你好" "你好呀" "hello" 等）
+    const greetings = ['你好', '嗨', 'hi', 'hello', '您好', 'hey', '在吗'];
+    if (greetings.some(g => userQuery === g || userQuery.startsWith(g + ' ') || userQuery.startsWith(g + '?') || userQuery.startsWith(g + '呀') || userQuery.startsWith(g + '啊'))) {
+        responseText = `您好！我是 Hitoshi，细胞世界模拟系统的 AI 助手。您可以问我关于**规则**、**参数**、**颜色**或**操作**的问题，也可输入「帮助」查看可问的主题。`;
+    }
+    // 2. 感谢/告别
+    else if (/^(谢谢|感谢|多谢|bye|再见)$/.test(userQuery)) {
+        responseText = '不客气！如有其他问题随时问我。';
+    }
+    // 3. 智能匹配：按触发词长度降序，优先匹配长词
+    else {
+        const matches = [];
+        for (const [topicId, triggers] of Object.entries(HITOSHI_TRIGGERS)) {
+            for (const trigger of triggers) {
+                if (userQuery.includes(trigger)) {
+                    const actualTopic = HITOSHI_ALIASES[topicId] || topicId;
+                    const score = trigger.length;
+                    const existing = matches.find(m => m.topic === actualTopic);
+                    if (!existing || existing.score < score) {
+                        if (existing) matches.splice(matches.indexOf(existing), 1);
+                        matches.push({ topic: actualTopic, score });
+                    }
+                    break;
+                }
+            }
+        }
+        // 按分数排序，取最佳匹配；若多主题可组合
+        matches.sort((a, b) => b.score - a.score);
+        const topMatches = matches.filter(m => m.score >= 2 || matches.length === 1).slice(0, 2);
+        const topics = [...new Set(topMatches.map(m => m.topic))];
+        if (topics.length > 0 && knowledge[topics[0]]) {
+            const parts = topics.map(t => knowledge[t]).filter(Boolean);
+            responseText = parts.join('\n\n---\n\n');
+        }
+    }
+
+    // 4. 未匹配时的友好 fallback
+    if (!responseText) {
+        const suggestions = ['系统介绍', '寿命', '死亡', '分裂', '病毒', '颜色', '如何开始', '帮助'];
+        responseText = `抱歉，我暂时没理解您的问题。您可以试试问：\n\n${suggestions.map(s => `• 「${s}」`).join('\n')}\n\n或输入「帮助」查看全部可问主题。`;
+    }
+
+    // 动态参数替换（防止模板未展开的占位符）
+    responseText = responseText.replace(/\$\{([^}]+)\}/g, (_, expr) => {
+        try { return eval(expr); } catch { return expr; }
+    });
+
+    setTimeout(() => {
+        const hitoshiMsgDiv = document.createElement('div');
+        hitoshiMsgDiv.className = 'message hitoshi-msg';
+        const lines = responseText.split('\n').map(line => `<p style="margin: 0; padding: 0;">${line}</p>`).join('');
+        hitoshiMsgDiv.innerHTML = `Hitoshi: ${lines}`;
+        chatWindow.appendChild(hitoshiMsgDiv);
+        chatWindow.scrollTop = chatWindow.scrollHeight;
+    }, 300);
+
+    document.getElementById('user-query').value = '';
+}
+
+// --- V27 折叠面板逻辑 (保持不变) ---
+function togglePanel(headerElement) {
+    const targetId = headerElement.getAttribute('data-target');
+    const contentElement = document.getElementById(targetId);
+    
+    headerElement.classList.toggle('collapsed');
+    contentElement.classList.toggle('collapsed');
+
+    if (contentElement.classList.contains('collapsed')) {
+         headerElement.style.borderRadius = '16px';
+    } else {
+         headerElement.style.borderRadius = '16px 16px 0 0';
+    }
+}
+
+function setupCollapsiblePanels() {
+    document.querySelectorAll('.panel-header').forEach(header => {
+        header.addEventListener('click', function() {
+            togglePanel(this);
+        });
+    });
+}
+
+/** 规则配置弹窗：打开/关闭（含收缩动画） */
+function openConfigModal() {
+    const modal = document.getElementById('configModal');
+    if (!modal) return;
+    populateUIFromConstants();
+    modal.classList.remove('hiding');
+    modal.classList.add('show');
+    modal.setAttribute('aria-hidden', 'false');
+    document.body.style.overflow = 'hidden';
+}
+function closeConfigModal() {
+    const modal = document.getElementById('configModal');
+    if (!modal || !modal.classList.contains('show')) return;
+    modal.classList.add('hiding');
+    modal.classList.remove('show');
+    setTimeout(() => {
+        modal.classList.remove('hiding');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+    }, 400);
+}
+
+
+// --- 初始化与事件绑定 ---
+function init() {
+    loadConfigFromFile();
+    canvas = document.getElementById('worldCanvas');
+    ctx = canvas.getContext('2d');
+    
+    // 设置画布的固定最大尺寸
+    canvas.width = CANVAS_SIZE;
+    canvas.height = CANVAS_SIZE; 
+
+    // V34 新增：滚轮缩放和平移事件
+    canvas.addEventListener('wheel', handleZoom);
+    canvas.addEventListener('mousedown', handleMouseDown);
+    canvas.addEventListener('mousemove', handleMouseMove);
+    canvas.addEventListener('mouseup', handleMouseUp);
+    canvas.addEventListener('mouseout', handleMouseUp); 
+
+    // 核心控制
+    document.getElementById('startResumeBtn').addEventListener('click', startOrResumeSimulation);
+    document.getElementById('pauseBtn').addEventListener('click', stopSimulation);
+    document.getElementById('resetBtn').addEventListener('click', resetSimulation);
+    document.getElementById('speedRange').addEventListener('input', updateSpeed);
+    document.getElementById('downloadLogBtn').addEventListener('click', downloadHistoryFromStorage);
+    document.getElementById('lightningBtn').addEventListener('click', triggerLightning);
+    document.getElementById('earthquakeBtn').addEventListener('click', triggerEarthquake);
+    document.getElementById('apocalypseMode').addEventListener('change', function() {
+        apocalypseMode = this.checked;
+    });
+    
+    // 时序控制
+    document.getElementById('stepBackBtn').addEventListener('click', manualStepBack);
+    document.getElementById('stepForwardBtn').addEventListener('click', manualStepForward);
+    
+    // 规则配置弹窗
+    document.getElementById('openConfigBtn').addEventListener('click', openConfigModal);
+    document.getElementById('closeConfigBtn').addEventListener('click', closeConfigModal);
+    document.getElementById('configModal').addEventListener('click', function(e) {
+        if (e.target === this) closeConfigModal();
+    });
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            const modal = document.getElementById('configModal');
+            if (modal && modal.classList.contains('show')) closeConfigModal();
+        }
+    });
+    document.getElementById('applySettingsBtn').addEventListener('click', function() {
+        loadSettingsFromUI();
+        closeConfigModal();
+    });
+    document.getElementById('resetConfigBtn').addEventListener('click', resetConfigToDefault);
+    const virusCb = document.getElementById('setting_VIRUS_ENABLED');
+    if (virusCb) virusCb.addEventListener('change', function() {
+        const lbl = this.closest('.toggle-wrap')?.querySelector('.toggle-label');
+        if (lbl) lbl.textContent = this.checked ? '开启' : '关闭';
+    });
+
+    // Hitoshi 助手事件
+    const queryInput = document.getElementById('user-query');
+    const sendButton = document.getElementById('send-query');
+
+    sendButton.addEventListener('click', () => {
+        if (queryInput.value.trim() !== '') {
+            respondToQuery(queryInput.value);
+        }
+    });
+
+    queryInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && queryInput.value.trim() !== '') {
+            respondToQuery(queryInput.value);
+        }
+    });
+
+    setupCollapsiblePanels();
+    
+    populateUIFromConstants(); 
+    
+    // 确保 CELL_SIZE 在首次运行时被计算
+    updateGridSize(); 
+    resetSimulation(); 
+}
+
+// ... (模拟函数)
+function updateSpeed(e) {
+    framesPerSecond = parseInt(e.target.value);
+    document.getElementById('speedVal').innerText = framesPerSecond;
+    if (isRunning) {
+        stopSimulation();
+        if (!isReplaying) startOrResumeSimulation();
+    }
+}
+
+function resetGridMap() {
+    gridMap = Array(GRID_SIZE).fill(null).map(() => Array(GRID_SIZE).fill(null));
+}
+
+function getNeighbors(cx, cy, type = '8-way') {
+    let neighbors = [];
+    let directions = type === '8-way' ? [
+        [-1, -1], [-1, 0], [-1, 1],
+        [0, -1],           [0, 1],
+        [1, -1], [1, 0], [1, 1]
+    ] : [
+        [-1, 0], [1, 0], [0, -1], [0, 1] 
+    ];
+
+    for (let [dx, dy] of directions) {
+        let nx = cx + dx;
+        let ny = cy + dy;
+        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && gridMap[ny][nx]) {
+            neighbors.push(gridMap[ny][nx]);
+        }
+    }
+    return neighbors;
+}
+
+function findEmptyAdjacent(cx, cy) {
+    const directions = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    directions.sort(() => Math.random() - 0.5); 
+    
+    for (let [dx, dy] of directions) {
+        let nx = cx + dx;
+        let ny = cy + dy;
+        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && !gridMap[ny][nx]) {
+            return { x: nx, y: ny };
+        }
+    }
+    return null;
+}
+
+function tick() {
+    if (historyPointer < stateHistory.length - 1 && isRunning) {
+        stopSimulation();
+        return; 
+    }
+    
+    bornCountThisTick = 0; 
+    
+    if (cells.length === 0 && isRunning) {
+        stopSimulation();
+        document.getElementById('simStatus').innerText = "游戏结束 (全部死亡)";
+        return;
+    }
+    
+    simulationTime++;
+
+    if (apocalypseMode && isRunning && cells.length > 0 && Math.random() < 0.04) {
+        if (Math.random() < 0.5) triggerLightning();
+        else triggerEarthquake();
+        if (cells.length === 0) {
+            stopSimulation();
+            document.getElementById('simStatus').innerText = "游戏结束 (全部死亡)";
+            return;
+        }
+    }
+
+    let nextCells = [];
+    let babies = [];
+    
+    resetGridMap();
+    cells.forEach(cell => { gridMap[cell.y][cell.x] = cell; });
+
+    const totalCount = cells.length;
+    const globalDensity = totalCount / GRID_AREA;
+    
+    if (globalDensity < VIRUS_DENSITY_STOP) {
+        cells.forEach(cell => cell.hasVirus = false);
+        virusPresent = false;
+    }
+    
+    let infectedThisTick = new Set();
+    cells.forEach(cell => {
+        if (cell.hasVirus) {
+            getNeighbors(cell.x, cell.y, '8-way').forEach(neighbor => {
+                if (!neighbor.hasVirus) {
+                    infectedThisTick.add(neighbor);
+                }
+            });
+        }
+    });
+    infectedThisTick.forEach(cell => cell.hasVirus = true);
+    virusPresent = cells.some(cell => cell.hasVirus);
+
+    if (virusEnabled && globalDensity > VIRUS_DENSITY_START && Math.random() < VIRUS_GENERATION_PRO) {
+        const healthyCells = cells.filter(cell => !cell.hasVirus);
+        if (healthyCells.length > 0) {
+            const randomCell = healthyCells[Math.floor(Math.random() * healthyCells.length)];
+            randomCell.hasVirus = true;
+            virusPresent = true; 
+        }
+    }
+
+    const calculatedProb = globalDensity * DENSITY_PROBABILITY_FACTOR; 
+    currentRuleActivationChance = Math.min(1.0, calculatedProb);
+    const isSuppressionRuleActive = (Math.random() < currentRuleActivationChance);
+
+    let cellsToProcess = [...cells];
+    
+    cellsToProcess.forEach(cell => {
+        const currentPos = { x: cell.x, y: cell.y };
+        let shouldDie = false;
+        let killedByVirusFlag = false;
+        let lifespanDecrease = 1;
+
+        if (cell.hasVirus) {
+            const lifespan = cell.lifespan;
+            if (lifespan < SPLIT_MIN || lifespan > SPLIT_MAX) { 
+                lifespanDecrease = VIRUS_ACCEL_HIGH; 
+            } else { 
+                lifespanDecrease = VIRUS_ACCEL_LOW; 
+            }
+        }
+
+        if (!shouldDie) {
+            cell.lifespan -= lifespanDecrease;
+
+            if (isNaN(cell.lifespan) || cell.lifespan <= 0) {
+                shouldDie = true;
+                if (lifespanDecrease > 1) { 
+                    killedByVirusFlag = true;
+                }
+            }
+        }
+        
+        const neighbors8 = getNeighbors(cell.x, cell.y, '8-way');
+        const neighbors4 = getNeighbors(cell.x, cell.y, '4-way');
+        const neighbors8Length = neighbors8.length;
+
+        if (neighbors8Length >= CONGESTION_LIMIT) shouldDie = true; 
+        
+        if (neighbors8Length === 0) {
+            cell.isolationTime++;
+            if (cell.isolationTime >= ISOLATION_LIMIT) shouldDie = true;
+        } else {
+            cell.isolationTime = 0; 
+        }
+        
+        if (shouldDie) {
+            const dieColor = cell.hasVirus ? '#00e676' : (cell.lifespan >= SPLIT_MIN && cell.lifespan <= SPLIT_MAX ? '#FFC107' : (cell.lifespan > SPLIT_MAX ? '#5B9DFF' : '#f44336'));
+            deathEffects.push({ x: cell.x, y: cell.y, progress: 0, color: dieColor });
+            gridMap[cell.y][cell.x] = null; 
+            if (killedByVirusFlag) cellsKilledByVirus++;
+            totalDeadCells++; 
+            return; 
+        }
+
+        if (cell.lifespan >= SPLIT_MIN && cell.lifespan <= SPLIT_MAX && neighbors4.length > 0) {
+            
+            if (!cell.hasVirus) { 
+                let canAttemptSplit = true;
+                
+                if (isSuppressionRuleActive && neighbors8Length >= 3 && neighbors8Length <= 5) {
+                    let successProbability = 1.0; 
+                    
+                    if (neighbors8Length === 3) successProbability = 0.6; 
+                    else if (neighbors8Length === 4) successProbability = 0.3; 
+                    else if (neighbors8Length === 5) successProbability = 0.0;
+                    
+                    if (Math.random() > successProbability) {
+                        canAttemptSplit = false; 
+                    }
+                }
+
+                if (canAttemptSplit) {
+                    const emptySpot = findEmptyAdjacent(cell.x, cell.y);
+                    if (emptySpot) {
+                        const baby = new Cell(emptySpot.x, emptySpot.y, MAX_LIFESPAN); 
+                        baby.hasVirus = cell.hasVirus; 
+                        
+                        gridMap[emptySpot.y][emptySpot.x] = baby; 
+                        babies.push(baby);
+                        bornCountThisTick++; 
+                    }
+                }
+            }
+        }
+        
+        const moveDirs = [[0,0], [0, -1], [0, 1], [-1, 0], [1, 0]]; 
+        const dir = moveDirs[Math.floor(Math.random() * moveDirs.length)];
+        let nx = cell.x + dir[0];
+        let ny = cell.y + dir[1];
+
+        if (nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE && !gridMap[ny][nx]) {
+            const trailColor = cell.hasVirus ? '#00e676' : (cell.lifespan >= SPLIT_MIN && cell.lifespan <= SPLIT_MAX ? '#FFC107' : (cell.lifespan > SPLIT_MAX ? '#5B9DFF' : '#f44336'));
+            cellTrails.push({ x: currentPos.x, y: currentPos.y, color: trailColor, alpha: 0.9 });
+            gridMap[currentPos.y][currentPos.x] = null;
+            cell.x = nx;
+            cell.y = ny;
+            gridMap[ny][nx] = cell;
+        } 
+        
+        nextCells.push(cell);
+    });
+
+    cells = [...nextCells, ...babies];
+    
+    resetGridMap();
+    cells.forEach(cell => gridMap[cell.y][cell.x] = cell);
+    
+    const cellStateCopy = cells.map(cell => cell.clone());
+    
+    if (historyPointer < stateHistory.length - 1) {
+        stateHistory.splice(historyPointer + 1);
+        historyLog.splice(historyLog.findIndex(log => log.time === historyPointer) + 1);
+    }
+
+    stateHistory.push(cellStateCopy);
+    historyPointer = stateHistory.length - 1; 
+
+    const stats = calculateCellCounts();
+    
+    if (simulationTime % LOG_INTERVAL === 0 || simulationTime === 1) {
+        historyLog.push({
+            time: simulationTime,
+            cellCount: cells.length,
+            density: (globalDensity * 100).toFixed(2) + '%',
+            infectedCount: stats.infectedCount,
+            cellsKilledByVirus: cellsKilledByVirus,
+            totalDeadCells: totalDeadCells,
+            ruleActivationProb: (currentRuleActivationChance * 100).toFixed(0) + '%'
+        });
+    }
+
+    updateStats(stats);
+    draw();
+}
+
+function calculateCellCounts() {
+    let newbornCount = 0;
+    let splittableCount = 0;
+    let agingCount = 0;
+    let infectedCount = 0;
+
+    cells.forEach(cell => {
+        if (cell.hasVirus) {
+            infectedCount++;
+        }
+        
+        if (cell.lifespan > SPLIT_MAX) { 
+            newbornCount++;
+        } else if (cell.lifespan >= SPLIT_MIN && cell.lifespan <= SPLIT_MAX) { 
+            splittableCount++;
+        } else if (cell.lifespan < SPLIT_MIN) { 
+            agingCount++;
+        }
+    });
+    return { newbornCount, splittableCount, agingCount, infectedCount };
+}
+
+function draw() {
+    // 绘图区域始终是 CANVAS_SIZE x CANVAS_SIZE
+    ctx.fillStyle = '#0d0d0d';
+    ctx.fillRect(0, 0, CANVAS_SIZE, CANVAS_SIZE);
+
+    // V34: 保存原始状态
+    ctx.save();
+    
+    // V34: 应用平移和缩放变换
+    ctx.translate(translateX, translateY);
+    ctx.scale(scale, scale);
+
+    // 绘制网格线 (大地图时跳过以减轻卡顿)
+    const GRID_DRAW_THRESHOLD = 180;
+    if (GRID_SIZE <= GRID_DRAW_THRESHOLD) {
+        ctx.strokeStyle = '#222';
+        ctx.lineWidth = 0.5 / scale; 
+        ctx.beginPath();
+        const step = GRID_SIZE > 80 ? Math.ceil(GRID_SIZE / 80) : 1;
+        for (let i = 0; i <= GRID_SIZE; i += step) {
+            const coord = i * CELL_SIZE;
+            ctx.moveTo(coord, 0);
+            ctx.lineTo(coord, CANVAS_SIZE);
+            ctx.moveTo(0, coord);
+            ctx.lineTo(CANVAS_SIZE, coord);
+        }
+        ctx.stroke();
+    }
+
+    // 绘制移动拖影 (限制数量以减轻卡顿)
+    const MAX_TRAILS = 400;
+    const MAX_DEATH_EFFECTS = 120;
+    const minWx = (-translateX - CELL_SIZE) / scale;
+    const maxWx = (800 - translateX + CELL_SIZE) / scale;
+    const minWy = (-translateY - CELL_SIZE) / scale;
+    const maxWy = (800 - translateY + CELL_SIZE) / scale;
+    const inView = (wx, wy) => wx >= minWx - CELL_SIZE && wx <= maxWx + CELL_SIZE && wy >= minWy - CELL_SIZE && wy <= maxWy + CELL_SIZE;
+    if (cellTrails.length > MAX_TRAILS) cellTrails = cellTrails.slice(-MAX_TRAILS);
+    cellTrails = cellTrails.filter(t => {
+        const px = t.x * CELL_SIZE;
+        const py = t.y * CELL_SIZE;
+        const drawIt = GRID_SIZE <= 150 || inView(px, py);
+        if (drawIt) {
+            const sz = Math.max(1 / scale, CELL_SIZE * 0.85);
+            const hex = t.color;
+            const r = parseInt(hex.slice(1,3), 16);
+            const g = parseInt(hex.slice(3,5), 16);
+            const b = parseInt(hex.slice(5,7), 16);
+            ctx.fillStyle = `rgba(${r},${g},${b},${t.alpha})`;
+            const rad = Math.min(6, Math.max(2, sz * 0.3));
+            if (typeof ctx.roundRect === 'function') {
+                ctx.beginPath();
+                ctx.roundRect(px + (CELL_SIZE - sz) / 2, py + (CELL_SIZE - sz) / 2, sz, sz, rad);
+                ctx.fill();
+            } else {
+                ctx.fillRect(px + (CELL_SIZE - sz) / 2, py + (CELL_SIZE - sz) / 2, sz, sz);
+            }
+        }
+        t.alpha -= 0.06;
+        return t.alpha > 0.05;
+    });
+
+    // 更新并绘制死亡炸裂效果 (限制数量)
+    if (deathEffects.length > MAX_DEATH_EFFECTS) deathEffects = deathEffects.slice(-MAX_DEATH_EFFECTS);
+    deathEffects = deathEffects.filter(e => {
+        const px = e.x * CELL_SIZE + CELL_SIZE / 2;
+        const py = e.y * CELL_SIZE + CELL_SIZE / 2;
+        const expand = e.progress * CELL_SIZE * 1.5;
+        const alpha = 1 - e.progress;
+        if (alpha <= 0) return false;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.strokeStyle = e.color;
+        ctx.lineWidth = 2 / scale;
+        for (let i = 0; i < 8; i++) {
+            const a = (i / 8) * Math.PI * 2;
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(px + Math.cos(a) * expand, py + Math.sin(a) * expand);
+            ctx.stroke();
+        }
+        ctx.beginPath();
+        ctx.arc(px, py, expand * 0.3, 0, Math.PI * 2);
+        ctx.fillStyle = e.color;
+        ctx.fill();
+        ctx.restore();
+        e.progress += 0.12;
+        return e.progress < 1;
+    });
+
+    // 大地图时仅绘制视口内的细胞以减轻卡顿
+    const cellsToDraw = GRID_SIZE > 150 
+        ? cells.filter(c => {
+            const wx = c.x * CELL_SIZE, wy = c.y * CELL_SIZE;
+            return wx >= minWx && wx <= maxWx && wy >= minWy && wy <= maxWy;
+        })
+        : cells;
+
+    cellsToDraw.forEach(cell => {
+        const px = cell.x * CELL_SIZE;
+        const py = cell.y * CELL_SIZE;
+
+        let color = '#5B9DFF'; 
+        if (cell.lifespan >= SPLIT_MIN && cell.lifespan <= SPLIT_MAX) color = '#FFC107'; 
+        else if (cell.lifespan < SPLIT_MIN) color = '#f44336'; 
+        if (cell.hasVirus) color = '#00e676'; 
+        
+        // 幼年期(>SPLIT_MAX)小、壮年期(SPLIT_MIN~MAX)大、老年期(<SPLIT_MIN)中
+        let sizeScale = 0.75;
+        if (cell.lifespan >= SPLIT_MIN && cell.lifespan <= SPLIT_MAX) sizeScale = 1;
+        else if (cell.lifespan < SPLIT_MIN) sizeScale = 0.88;
+        
+        let drawSize = CELL_SIZE <= 3 ? CELL_SIZE * sizeScale : (CELL_SIZE - 2) * sizeScale;
+        drawSize = Math.max(1 / scale, Math.round(drawSize));
+        const drawOffset = CELL_SIZE <= 3 ? 0 : (CELL_SIZE - drawSize) / 2;
+        const rad = Math.max(1, Math.min(8, drawSize * 0.2));
+
+        ctx.fillStyle = color;
+        const rx = px + drawOffset;
+        const ry = py + drawOffset;
+        if (typeof ctx.roundRect === 'function') {
+            ctx.beginPath();
+            ctx.roundRect(rx, ry, drawSize, drawSize, rad);
+            ctx.fill();
+        } else {
+            ctx.beginPath();
+            ctx.moveTo(rx + rad, ry);
+            ctx.lineTo(rx + drawSize - rad, ry);
+            ctx.quadraticCurveTo(rx + drawSize, ry, rx + drawSize, ry + rad);
+            ctx.lineTo(rx + drawSize, ry + drawSize - rad);
+            ctx.quadraticCurveTo(rx + drawSize, ry + drawSize, rx + drawSize - rad, ry + drawSize);
+            ctx.lineTo(rx + rad, ry + drawSize);
+            ctx.quadraticCurveTo(rx, ry + drawSize, rx, ry + drawSize - rad);
+            ctx.lineTo(rx, ry + rad);
+            ctx.quadraticCurveTo(rx, ry, rx + rad, ry);
+            ctx.fill();
+        }
+
+        if (GRID_SIZE <= 200 && CELL_SIZE * scale >= 12) {
+            ctx.font = `${Math.max(2, CELL_SIZE * 0.4 * sizeScale)}px Arial`;
+            ctx.fillStyle = 'white';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            const displayLife = isNaN(cell.lifespan) ? '?' : Math.round(cell.lifespan); 
+            ctx.fillText(displayLife, px + CELL_SIZE / 2, py + CELL_SIZE / 2);
+        }
+    });
+    
+    // V34: 恢复原始状态
+    ctx.restore();
+
+    const hasEffects = deathEffects.length > 0 || cellTrails.length > 0;
+    if (hasEffects && !animLoopId && !isInAnimLoop) {
+        function animFrame() {
+            isInAnimLoop = true;
+            animLoopId = null;
+            draw();
+            if (deathEffects.length > 0 || cellTrails.length > 0) {
+                animLoopId = requestAnimationFrame(animFrame);
+            } else {
+                isInAnimLoop = false;
+            }
+        }
+        animLoopId = requestAnimationFrame(animFrame);
+    } else if (!hasEffects) {
+        isInAnimLoop = false;
+    }
+}
+
+function updateStats(stats) {
+    const totalCount = cells.length;
+    const globalDensity = totalCount / GRID_AREA;
+    
+    const formatPercent = (count) => {
+        if (totalCount === 0) return '0.00%';
+        return ((count / totalCount) * 100).toFixed(2) + '%';
+    };
+
+    document.getElementById('cellCount').innerText = totalCount;
+    document.getElementById('simTime').innerText = `${simulationTime} s`;
+    
+    const displayStatus = isReplaying ? "回溯中..." : (isRunning ? "演化中..." : "已暂停");
+    document.getElementById('simStatus').innerText = displayStatus;
+    
+    document.getElementById('historyPointerInfo').innerText = `${historyPointer + 1} / ${stateHistory.length}`;
+    
+    // V30 修复：前进/后退按钮的启用逻辑
+    document.getElementById('stepBackBtn').disabled = historyPointer <= 0 || isRunning;
+    document.getElementById('stepForwardBtn').disabled = isRunning; 
+
+    document.getElementById('virusPresentStatus').innerText = virusPresent ? "已激活" : "无病毒";
+    document.getElementById('infectedPercent').innerText = formatPercent(stats.infectedCount);
+    document.getElementById('killedByVirus').innerText = cellsKilledByVirus;
+    document.getElementById('totalDeadCells').innerText = totalDeadCells; 
+
+    document.getElementById('density').innerText = `${(globalDensity * 100).toFixed(2)}%`;
+    document.getElementById('ruleProb').innerText = `${(currentRuleActivationChance * 100).toFixed(0)}%`;
+    
+    // V34 新增：更新缩放比例
+    document.getElementById('scaleValue').innerText = scale.toFixed(2);
+}
+
+function loadState(index) {
+    if (index < 0 || index >= stateHistory.length) return;
+    
+    stopSimulation();
+    isReplaying = true;
+    
+    const state = stateHistory[index];
+    cells = state.map(cell => cell.clone());
+    
+    simulationTime = index;
+    historyPointer = index;
+    
+    resetGridMap();
+    cells.forEach(cell => gridMap[cell.y][cell.x] = cell);
+
+    const stats = calculateCellCounts();
+    updateStats(stats);
+    draw();
+}
+
+function manualStepBack() {
+    if (isRunning) return;
+    if (historyPointer > 0) {
+        loadState(historyPointer - 1);
+    }
+}
+
+function manualStepForward() {
+    if (isRunning) return;
+    
+    if (historyPointer < stateHistory.length - 1) { // 前进到历史记录中的下一个状态
+        loadState(historyPointer + 1);
+    } 
+    else if (historyPointer === stateHistory.length - 1 && historyPointer >= 0) { // 处于历史记录末尾，执行新的 Tick
+        isReplaying = false; 
+        simulationTime = historyPointer; 
+        tick(); 
+    }
+}
+
+function runGameLoop() {
+    if (!isRunning) return;
+    tick();
+    simulationId = setTimeout(runGameLoop, 1000 / framesPerSecond);
+}
+
+function startOrResumeSimulation() {
+    if (isRunning) return; 
+    
+    if (historyPointer < stateHistory.length - 1) {
+        const confirmation = confirm("当前指针位于历史记录中间。从 T=" + simulationTime + " 开始将删除 T=" + (simulationTime + 1) + " 及之后的所有记录。是否继续？");
+        if (!confirmation) {
+            return;
+        }
+    }
+
+    if (cells.length === 0) {
+        resetSimulation(); 
+    }
+    
+    isRunning = true;
+    isReplaying = false;
+    document.getElementById('simStatus').innerText = "演化中...";
+    document.getElementById('startResumeBtn').innerText = "继续"; 
+    
+    runGameLoop();
+}
+
+function stopSimulation() {
+    isRunning = false;
+    if (simulationId) {
+        clearTimeout(simulationId);
+        simulationId = null;
+    }
+    
+    const stats = calculateCellCounts();
+    updateStats(stats); 
+}
+
+const HISTORY_STORAGE_KEY = 'cellWorld_historyRecords';
+
+/** 将当前历史记录追加到 localStorage */
+function saveHistoryToStorage() {
+    if (!historyLog || historyLog.length === 0) return;
+    try {
+        let arr = [];
+        const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
+        if (saved) {
+            try { arr = JSON.parse(saved); } catch (_) {}
+        }
+        const now = new Date();
+        arr.push({
+            dateTime: now.toISOString().slice(0, 19).replace(/T/g,'_').replace(/:/g,'-'),
+            records: [...historyLog]
+        });
+        localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(arr));
+    } catch (_) {}
+}
+
+/** 从 localStorage 加载所有历史记录、打包下载、并清除 */
+function downloadHistoryFromStorage() {
+    try {
+        const saved = localStorage.getItem(HISTORY_STORAGE_KEY);
+        if (!saved) {
+            alert('暂无存储的历史记录。');
+            return;
+        }
+        let arr = [];
+        try { arr = JSON.parse(saved); } catch (_) {}
+        if (arr.length === 0) {
+            alert('暂无存储的历史记录。');
+            return;
+        }
+        const lines = ['人造细胞世界模拟 - 历史记录汇总', '='.repeat(50), ''];
+        arr.forEach((chunk, idx) => {
+            lines.push(`\n--- 第 ${idx + 1} 段 | ${chunk.dateTime} ---\n`);
+            (chunk.records || []).forEach(entry => {
+                lines.push(`[T=${entry.time}] 细胞数: ${entry.cellCount} | 密度: ${entry.density} | 感染: ${entry.infectedCount} | 病毒致死: ${entry.cellsKilledByVirus} | 总死亡: ${entry.totalDeadCells} | 拥挤抑制: ${entry.ruleActivationProb}`);
+            });
+        });
+        const text = lines.join('\n');
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `历史记录_${new Date().toISOString().slice(0,10)}_汇总.txt`;
+        a.style.display = 'none';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        localStorage.removeItem(HISTORY_STORAGE_KEY);
+    } catch (e) {
+        alert('加载或下载失败：' + (e.message || '未知错误'));
+    }
+}
+
+/** 在指定格子添加细胞(若为空) */
+function spawnCellAt(gx, gy) {
+    if (gx < 0 || gx >= GRID_SIZE || gy < 0 || gy >= GRID_SIZE) return;
+    if (gridMap[gy] && gridMap[gy][gx]) return;
+    const newCell = new Cell(gx, gy, MAX_LIFESPAN);
+    cells.push(newCell);
+    gridMap[gy][gx] = newCell;
+    if (stateHistory.length > 0) {
+        stateHistory[stateHistory.length - 1] = cells.map(c => c.clone());
+    }
+    updateStats(calculateCellCounts());
+    draw();
+}
+
+/** 闪电：随机区域释放闪电，杀死范围内的所有细胞 */
+function triggerLightning() {
+    const cx = Math.floor(Math.random() * GRID_SIZE);
+    const cy = Math.floor(Math.random() * GRID_SIZE);
+    const radius = Math.max(2, Math.min(12, Math.floor(GRID_SIZE * 0.08)));
+    const toKill = [];
+    for (let dy = -radius; dy <= radius; dy++) {
+        for (let dx = -radius; dx <= radius; dx++) {
+            if (dx * dx + dy * dy <= radius * radius) {
+                const gx = cx + dx, gy = cy + dy;
+                if (gx >= 0 && gx < GRID_SIZE && gy >= 0 && gy < GRID_SIZE) {
+                    const cell = gridMap[gy] && gridMap[gy][gx];
+                    if (cell) toKill.push(cell);
+                }
+            }
+        }
+    }
+    toKill.forEach(c => {
+        const dieColor = c.hasVirus ? '#00e676' : (c.lifespan >= SPLIT_MIN && c.lifespan <= SPLIT_MAX ? '#FFC107' : (c.lifespan > SPLIT_MAX ? '#5B9DFF' : '#f44336'));
+        deathEffects.push({ x: c.x, y: c.y, progress: 0, color: dieColor });
+    });
+    cells = cells.filter(c => !toKill.includes(c));
+    totalDeadCells += toKill.length;
+    resetGridMap();
+    cells.forEach(c => { gridMap[c.y][c.x] = c; });
+    if (stateHistory.length > 0 && historyPointer === stateHistory.length - 1) {
+        stateHistory[stateHistory.length - 1] = cells.map(c => c.clone());
+    }
+    updateStats(calculateCellCounts());
+    draw();
+}
+
+/** 地震：随机竖条或横条裂缝(宽度不固定)，裂缝内细胞死亡 */
+function triggerEarthquake() {
+    const toKill = [];
+    const numCracks = 1 + Math.floor(Math.random() * 2);
+    for (let k = 0; k < numCracks; k++) {
+        const dir = Math.random() < 0.5 ? 'v' : 'h';
+        const width = 1 + Math.floor(Math.random() * Math.max(1, Math.floor(GRID_SIZE * 0.06)));
+        if (dir === 'v') {
+            const xStart = Math.floor(Math.random() * Math.max(1, GRID_SIZE - width));
+            const xEnd = Math.min(GRID_SIZE, xStart + width);
+            for (let gx = xStart; gx < xEnd; gx++) {
+                for (let gy = 0; gy < GRID_SIZE; gy++) {
+                    const cell = gridMap[gy] && gridMap[gy][gx];
+                    if (cell) toKill.push(cell);
+                }
+            }
+        } else {
+            const yStart = Math.floor(Math.random() * Math.max(1, GRID_SIZE - width));
+            const yEnd = Math.min(GRID_SIZE, yStart + width);
+            for (let gy = yStart; gy < yEnd; gy++) {
+                for (let gx = 0; gx < GRID_SIZE; gx++) {
+                    const cell = gridMap[gy] && gridMap[gy][gx];
+                    if (cell) toKill.push(cell);
+                }
+            }
+        }
+    }
+    const killed = [...new Set(toKill)];
+    killed.forEach(c => {
+        const dieColor = c.hasVirus ? '#00e676' : (c.lifespan >= SPLIT_MIN && c.lifespan <= SPLIT_MAX ? '#FFC107' : (c.lifespan > SPLIT_MAX ? '#5B9DFF' : '#f44336'));
+        deathEffects.push({ x: c.x, y: c.y, progress: 0, color: dieColor });
+    });
+    cells = cells.filter(c => !killed.includes(c));
+    totalDeadCells += killed.length;
+    resetGridMap();
+    cells.forEach(c => { gridMap[c.y][c.x] = c; });
+    if (stateHistory.length > 0 && historyPointer === stateHistory.length - 1) {
+        stateHistory[stateHistory.length - 1] = cells.map(c => c.clone());
+    }
+    updateStats(calculateCellCounts());
+    draw();
+}
+
+/** 手动杀死指定格子的细胞 */
+function killCellAt(gx, gy) {
+    if (gx < 0 || gx >= GRID_SIZE || gy < 0 || gy >= GRID_SIZE) return;
+    const cell = gridMap[gy] && gridMap[gy][gx];
+    if (!cell) return;
+    const dieColor = cell.hasVirus ? '#00e676' : (cell.lifespan >= SPLIT_MIN && cell.lifespan <= SPLIT_MAX ? '#FFC107' : (cell.lifespan > SPLIT_MAX ? '#5B9DFF' : '#f44336'));
+    deathEffects.push({ x: cell.x, y: cell.y, progress: 0, color: dieColor });
+    gridMap[cell.y][cell.x] = null;
+    cells = cells.filter(c => c !== cell);
+    totalDeadCells++;
+    resetGridMap();
+    cells.forEach(c => { gridMap[c.y][c.x] = c; });
+    const stats = calculateCellCounts();
+    updateStats(stats);
+    draw();
+    if (historyPointer === stateHistory.length - 1) {
+        stateHistory[stateHistory.length - 1] = cells.map(c => c.clone());
+    }
+}
+
+function resetSimulation() {
+    stopSimulation();
+    saveHistoryToStorage();
+    
+    simulationTime = 0;
+    currentRuleActivationChance = 0;
+    cellsKilledByVirus = 0; 
+    totalDeadCells = 0;      
+    virusPresent = false; 
+    bornCountThisTick = 0;
+    historyLog = [];         
+    
+    stateHistory = [];
+    historyPointer = 0;
+    isReplaying = false;
+    cellTrails = [];
+    deathEffects = [];
+    if (animLoopId) {
+        cancelAnimationFrame(animLoopId);
+        animLoopId = null;
+    }
+    isInAnimLoop = false;
+    
+    // V34 新增：重置视图状态
+    scale = 1.0;
+    translateX = 0;
+    translateY = 0;
+
+    initMode = document.getElementById('initMode')?.value || 'random';
+
+    cells = [];
+    resetGridMap();
+
+    if (initMode === 'random') {
+        const maxCells = GRID_AREA;
+        const initialCountInput = parseInt(document.getElementById('initCount').value) || 100;
+        const count = Math.min(initialCountInput, maxCells);
+        document.getElementById('initCount').value = count;
+        let placed = 0;
+        while (placed < count) {
+            let x = Math.floor(Math.random() * GRID_SIZE);
+            let y = Math.floor(Math.random() * GRID_SIZE);
+            if (!gridMap[y] || !gridMap[y][x]) {
+                const newCell = new Cell(x, y, MAX_LIFESPAN);
+                cells.push(newCell);
+                if (gridMap[y] && gridMap[y][x] === null) {
+                    gridMap[y][x] = newCell;
+                }
+                placed++;
+            }
+        }
+    }
+
+    stateHistory.push(cells.map(cell => cell.clone()));
+
+    const stats = calculateCellCounts();
+    updateStats(stats); 
+    draw();
+    
+    isRunning = false; 
+    document.getElementById('simStatus').innerText = "停止";
+    document.getElementById('startResumeBtn').innerText = "开始";
+}
+
+// 页面关闭或刷新前尝试保存历史到 localStorage
+function onBeforeUnload() {
+    if (historyLog && historyLog.length > 0) saveHistoryToStorage();
+}
+window.addEventListener('beforeunload', onBeforeUnload);
+window.addEventListener('pagehide', onBeforeUnload);
+
+// 启动程序
+init();
+
+</script>
+</body>
+</html>
